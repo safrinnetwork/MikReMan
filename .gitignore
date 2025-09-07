@@ -1,0 +1,109 @@
+# VPN Remote - Git Ignore File
+# Ignore sensitive configuration and generated files
+
+# Configuration Files (CRITICAL - Never commit!)
+config/
+config.json.enc
+encryption.key
+*.enc
+*.key
+
+# Environment Files
+.env
+.env.local
+.env.production
+.env.staging
+
+# Log Files
+*.log
+logs/
+error.log
+access.log
+php_errors.log
+
+# Temporary Files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# IDE Files
+.vscode/
+.idea/
+*.sublime-*
+
+# PHP Specific
+composer.lock
+vendor/
+
+# Cache Files  
+cache/
+*.cache
+sessions/
+
+# Backup Files
+*.bak
+*.backup
+*.old
+config_backup/
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Database Files (if any)
+*.sqlite
+*.db
+*.sql
+
+# Upload Directories (if any)
+uploads/
+files/
+
+# Node.js (if using build tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Test Files
+tests/
+phpunit.xml
+.phpunit.result.cache
+
+# Documentation Screenshots (optional - uncomment if not sharing)
+# screenshots/
+# docs/images/
+
+# Local Development Files
+local.php
+dev.php
+test.php
+
+# Security Keys
+*.pem
+*.crt
+*.p12
+private.key
+public.key
+
+# MikroTik Backup Files (contains sensitive data)
+*.rsc
+*.backup
+
+# Telegram Bot Files (if stored locally)
+telegram_bot_token.txt
+chat_ids.txt
+
+# Custom Local Settings
+settings.local.json
+config.local.php
