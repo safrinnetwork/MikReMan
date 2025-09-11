@@ -1,4 +1,4 @@
-# MikReMan - MikroTik Remote Manager
+# MikReMan - MikroTik Remote Manager (RouterOS v7.2+ Only)
 
 🚀 **MikroTik Remote Manager v1.69**
 
