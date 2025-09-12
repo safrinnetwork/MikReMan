@@ -366,7 +366,7 @@ vpn_remote/
 - 📖 **Documentation**: Check this README first
 - 🐛 **Bug Reports**: Create GitHub issue with details
 - 💡 **Feature Requests**: Open GitHub discussion
-- 📧 **Email Support**: [your-email@domain.com]
+- 📧 **Email Support**: safrinnetwork@gmail.com
 
 ### **Contributing**
 1. Fork the repository
