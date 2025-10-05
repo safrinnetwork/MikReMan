@@ -1,4 +1,5 @@
 <h1 align="center">MikReMan v1.69</h1>
+<h2 align="center">Hanya Untuk MikroTik Router OS 7.5+</h2>
 
 <p align="center">
   <a href="https://github.com/safrinnetwork/MikReMan">
