@@ -136,6 +136,10 @@ try {
             getPPPActive();
             break;
 
+        case 'get_available_services':
+            getAvailableServices();
+            break;
+
         case 'get_nat_by_user':
             requireAuth();
             if (empty($input)) {
@@ -875,6 +879,35 @@ function getPPPActive() {
             'success' => false,
             'message' => $e->getMessage(),
             'data' => []
+        ]);
+    }
+}
+
+function getAvailableServices() {
+    try {
+        $mikrotik = new MikroTikAPI();
+
+        // Get VPN service status from MikroTik
+        $services = $mikrotik->getVPNServicesStatus();
+
+        // Filter only enabled services
+        $availableServices = [];
+        foreach ($services as $service => $status) {
+            if ($status === true || $status === 'enabled') {
+                $availableServices[] = strtolower($service);
+            }
+        }
+
+        echo json_encode([
+            'success' => true,
+            'data' => $availableServices
+        ]);
+
+    } catch (Exception $e) {
+        // Return default services if error
+        echo json_encode([
+            'success' => true,
+            'data' => ['l2tp', 'pptp', 'sstp', 'any']
         ]);
     }
 }

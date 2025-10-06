@@ -105,6 +105,8 @@ function sanitizeOutput($data, $context = 'html') {
             font-size: 2rem;
             font-weight: bold;
             color: #4fc3f7;
+            white-space: nowrap;
+            display: inline-block;
         }
         
         .stat-label {

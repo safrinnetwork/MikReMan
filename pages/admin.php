@@ -226,7 +226,7 @@ $csrf_token = generateCSRFToken();
                                         <input type="number" class="form-control" id="mt_port" name="port" value="443" min="1" max="65535" autocomplete="off">
                                     </div>
                                     
-                                    <div class="d-flex gap-2 flex-wrap">
+                                    <div class="d-flex gap-2">
                                         <button type="submit" class="btn btn-primary">
                                             <i class="bi bi-check-lg me-2"></i>
                                             Save

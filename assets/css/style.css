@@ -1366,6 +1366,13 @@ small {
     color: var(--text-light) !important;
 }
 
+/* Fix stat-value word breaking */
+.stat-value {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    display: inline-block !important;
+}
+
 /* Fix dropdown and modal colors */
 .dropdown-menu {
     background-color: var(--dark-surface) !important;
@@ -1451,4 +1458,50 @@ small {
     color: var(--primary-color) !important;
     background-color: var(--dark-surface) !important;
     border-color: var(--dark-border) !important;
+}
+
+/* Responsive button sizing for MikroTik form */
+#mikrotik-form .d-flex.gap-2 {
+    flex-wrap: nowrap !important;
+    gap: 0.5rem !important;
+}
+
+#mikrotik-form .d-flex.gap-2 .btn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    flex: 0 1 auto;
+    min-width: auto;
+}
+
+#mikrotik-form .d-flex.gap-2 .btn i {
+    font-size: 0.8rem;
+    margin-right: 0.25rem;
+}
+
+/* Reduce icon margin further on smaller screens */
+@media (max-width: 1024px) {
+    #mikrotik-form .d-flex.gap-2 .btn {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.75rem;
+    }
+
+    #mikrotik-form .d-flex.gap-2 .btn i {
+        font-size: 0.75rem;
+        margin-right: 0.2rem;
+    }
+}
+
+/* Stack buttons on very small screens only */
+@media (max-width: 480px) {
+    #mikrotik-form .d-flex.gap-2 {
+        flex-direction: column;
+        flex-wrap: wrap !important;
+    }
+
+    #mikrotik-form .d-flex.gap-2 .btn {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
 }

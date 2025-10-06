@@ -197,25 +197,54 @@ function sanitizeOutput($data, $context = 'html') {
             box-shadow: 0 0 8px rgba(203, 213, 224, 0.4);
         }
 
-        .traffic-info {
+        .traffic-info-compact {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
             font-size: 0.85rem;
             font-family: 'Courier New', monospace;
             white-space: nowrap;
         }
 
-        .traffic-download {
-            color: #48bb78;
-            font-weight: 500;
+        .traffic-item-compact {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.2rem;
+        }
+
+        .traffic-item-compact i {
+            font-size: 0.85rem;
+        }
+
+        .traffic-value {
+            font-weight: 600;
+            font-size: 0.85rem;
+            min-width: 75px;
+            display: inline-block;
+            text-align: right;
+        }
+
+        .traffic-separator {
+            color: #4a5568;
+            font-weight: bold;
+            padding: 0 0.15rem;
+            font-size: 0.8rem;
         }
 
         .traffic-upload {
             color: #4299e1;
-            font-weight: 500;
         }
 
-        .traffic-total {
-            color: #ecc94b;
-            font-weight: 600;
+        .traffic-upload i {
+            color: #4299e1;
+        }
+
+        .traffic-download {
+            color: #48bb78;
+        }
+
+        .traffic-download i {
+            color: #48bb78;
         }
 
         .username-link {
@@ -253,11 +282,39 @@ function sanitizeOutput($data, $context = 'html') {
             border-radius: 4px;
             font-family: 'Courier New', monospace;
             font-size: 0.9rem;
+            transition: all 0.2s ease;
         }
 
         .nat-rule-item i {
             margin-right: 0.5rem;
             color: #48bb78;
+        }
+
+        .nat-rule-clickable {
+            cursor: pointer;
+            position: relative;
+        }
+
+        .nat-rule-clickable:hover {
+            background: rgba(72, 187, 120, 0.25);
+            border-left-color: #38a169;
+            transform: translateX(3px);
+            box-shadow: 0 2px 8px rgba(72, 187, 120, 0.3);
+        }
+
+        .nat-rule-clickable .copy-icon {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            color: #4fc3f7;
+            font-size: 0.85rem;
+        }
+
+        .nat-rule-clickable:hover .copy-icon {
+            opacity: 1;
+        }
+
+        .nat-port-text {
+            flex: 1;
         }
 
         .nat-empty {
@@ -782,6 +839,7 @@ function sanitizeOutput($data, $context = 'html') {
             constructor() {
                 this.users = [];
                 this.activeSessions = [];
+                this.previousTrafficData = new Map(); // Store previous traffic data for rate calculation
                 this.selectedUsers = new Set();
                 this.openNATRows = new Set(); // Track which NAT rows are open
                 this.natCache = new Map(); // Cache NAT content per userId
@@ -795,6 +853,7 @@ function sanitizeOutput($data, $context = 'html') {
                 this.loadUsers();
                 this.loadActiveSessions();
                 this.updateStats();
+                this.loadAvailableServices();
 
                 // Start periodic updates for real-time traffic
                 setInterval(() => {
@@ -830,17 +889,13 @@ function sanitizeOutput($data, $context = 'html') {
                 // Form submissions
                 const addUserForm = document.getElementById('addUserForm');
                 const editUserForm = document.getElementById('editUserForm');
-                
+
                 if (addUserForm) {
                     addUserForm.addEventListener('submit', (e) => this.handleAddUser(e));
-                } else {
-                    console.error('addUserForm not found');
                 }
-                
+
                 if (editUserForm) {
                     editUserForm.addEventListener('submit', (e) => this.handleEditUser(e));
-                } else {
-                    console.error('editUserForm not found');
                 }
                 
                 // Service change event for auto IP assignment
@@ -925,16 +980,8 @@ function sanitizeOutput($data, $context = 'html') {
                         throw new Error(`Invalid JSON response: ${responseText.substring(0, 200)}`);
                     }
 
-                    // If response not OK, check if we have error details in JSON
+                    // If response not OK, throw error with message
                     if (!response.ok) {
-                        console.error('API Error Response:', jsonData);
-
-                        // If we have debug info, log it
-                        if (jsonData.debug) {
-                            console.error('Error details:', jsonData.debug);
-                        }
-
-                        // Throw error with the message from JSON or default
                         throw new Error(jsonData.message || `HTTP error! status: ${response.status}`);
                     }
 
@@ -962,17 +1009,129 @@ function sanitizeOutput($data, $context = 'html') {
                 }
             }
 
+            async loadAvailableServices() {
+                try {
+                    const result = await this.fetchAPI('get_available_services');
+
+                    if (result.success && result.data) {
+                        this.updateServiceDropdown(result.data);
+                    }
+                } catch (error) {
+                    // Silent error - keep default services
+                    console.error('Error loading available services:', error);
+                }
+            }
+
+            updateServiceDropdown(availableServices) {
+                // Update Add User modal dropdown
+                const serviceDropdown = document.getElementById('userService');
+                if (serviceDropdown) {
+                    // Clear current options except the first one (placeholder)
+                    serviceDropdown.innerHTML = '<option value="">Select Service</option>';
+
+                    // Add only available services
+                    if (availableServices.includes('l2tp')) {
+                        serviceDropdown.innerHTML += '<option value="l2tp">L2TP</option>';
+                    }
+                    if (availableServices.includes('pptp')) {
+                        serviceDropdown.innerHTML += '<option value="pptp">PPTP</option>';
+                    }
+                    if (availableServices.includes('sstp')) {
+                        serviceDropdown.innerHTML += '<option value="sstp">SSTP</option>';
+                    }
+
+                    // Always add "Any" option if at least one service is available
+                    if (availableServices.length > 0) {
+                        serviceDropdown.innerHTML += '<option value="any">Any</option>';
+                    }
+                }
+
+                // Update Edit User modal dropdown
+                const editServiceDropdown = document.getElementById('editUserService');
+                if (editServiceDropdown) {
+                    const currentValue = editServiceDropdown.value; // Save current selection
+
+                    editServiceDropdown.innerHTML = '';
+
+                    // Add only available services
+                    if (availableServices.includes('l2tp')) {
+                        editServiceDropdown.innerHTML += '<option value="l2tp">L2TP</option>';
+                    }
+                    if (availableServices.includes('pptp')) {
+                        editServiceDropdown.innerHTML += '<option value="pptp">PPTP</option>';
+                    }
+                    if (availableServices.includes('sstp')) {
+                        editServiceDropdown.innerHTML += '<option value="sstp">SSTP</option>';
+                    }
+
+                    // Always add "Any" option
+                    if (availableServices.length > 0) {
+                        editServiceDropdown.innerHTML += '<option value="any">Any</option>';
+                    }
+
+                    // Restore selection if it's still available
+                    if (currentValue && availableServices.includes(currentValue)) {
+                        editServiceDropdown.value = currentValue;
+                    }
+                }
+            }
+
             async loadActiveSessions() {
                 try {
                     const result = await this.fetchAPI('get_ppp_active');
 
                     if (result.success) {
-                        this.activeSessions = result.data || [];
+                        // Update traffic data BEFORE updating activeSessions
+                        const newSessions = result.data || [];
+
+                        // Calculate traffic rates for all users
+                        newSessions.forEach(session => {
+                            const username = session.name;
+                            const rxBytes = parseInt(session['bytes-in'] || session['rx-byte'] || session.rx || 0);
+                            const txBytes = parseInt(session['bytes-out'] || session['tx-byte'] || session.tx || 0);
+                            const currentTime = Date.now();
+
+                            const previousData = this.previousTrafficData.get(username);
+
+                            // Calculate and store rate
+                            if (previousData && previousData.time) {
+                                const timeDiff = (currentTime - previousData.time) / 1000;
+
+                                if (timeDiff > 1.5) { // Only calculate if at least 1.5 seconds passed
+                                    const rxDiff = rxBytes - previousData.rx;
+                                    const txDiff = txBytes - previousData.tx;
+
+                                    if (rxDiff >= 0 && txDiff >= 0) {
+                                        const rxRate = rxDiff / timeDiff;
+                                        const txRate = txDiff / timeDiff;
+
+                                        // Store calculated rate
+                                        this.previousTrafficData.set(username, {
+                                            rx: rxBytes,
+                                            tx: txBytes,
+                                            rxRate: rxRate,
+                                            txRate: txRate,
+                                            time: currentTime
+                                        });
+                                    }
+                                }
+                            } else {
+                                // First time - just store the data
+                                this.previousTrafficData.set(username, {
+                                    rx: rxBytes,
+                                    tx: txBytes,
+                                    rxRate: 0,
+                                    txRate: 0,
+                                    time: currentTime
+                                });
+                            }
+                        });
+
+                        this.activeSessions = newSessions;
                         this.renderUsers(); // Re-render to update online/offline status and traffic
                     }
                 } catch (error) {
-                    // Silent error for active sessions
-                    console.error('Error loading active sessions:', error);
+                    // Silent error for active sessions - no action needed
                 }
             }
 
@@ -986,23 +1145,28 @@ function sanitizeOutput($data, $context = 'html') {
 
             getUserTraffic(username) {
                 if (!this.activeSessions || this.activeSessions.length === 0) {
-                    return { rx: '-', tx: '-', total: '-' };
+                    return { rx: '-', tx: '-', rxRate: '-', txRate: '-' };
                 }
 
                 const session = this.activeSessions.find(s => s.name === username);
                 if (!session) {
-                    return { rx: '-', tx: '-', total: '-' };
+                    return { rx: '-', tx: '-', rxRate: '-', txRate: '-' };
                 }
 
-                // Format bytes from session data
-                const rxBytes = parseInt(session['bytes-in'] || session.rx || 0);
-                const txBytes = parseInt(session['bytes-out'] || session.tx || 0);
+                // Get traffic data from cache (calculated in loadActiveSessions)
+                const trafficData = this.previousTrafficData.get(username);
 
-                return {
-                    rx: this.formatBytes(rxBytes),
-                    tx: this.formatBytes(txBytes),
-                    total: this.formatBytes(rxBytes + txBytes)
-                };
+                if (trafficData) {
+                    return {
+                        rx: this.formatBytes(trafficData.rx),
+                        tx: this.formatBytes(trafficData.tx),
+                        rxRate: this.formatBitrate(trafficData.rxRate || 0),
+                        txRate: this.formatBitrate(trafficData.txRate || 0)
+                    };
+                }
+
+                // No traffic data yet
+                return { rx: '-', tx: '-', rxRate: '-', txRate: '-' };
             }
 
             formatBytes(bytes) {
@@ -1013,6 +1177,32 @@ function sanitizeOutput($data, $context = 'html') {
                 const i = Math.floor(Math.log(bytes) / Math.log(k));
 
                 return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            formatBitrate(bytesPerSecond) {
+                if (bytesPerSecond === 0 || !bytesPerSecond) return '0.0 Kbps';
+
+                // Convert bytes to bits
+                const bitsPerSecond = bytesPerSecond * 8;
+
+                const k = 1000; // Use 1000 for network speeds (not 1024)
+                const sizes = ['bps', 'Kbps', 'Mbps', 'Gbps'];
+                const i = Math.floor(Math.log(bitsPerSecond) / Math.log(k));
+
+                const value = parseFloat((bitsPerSecond / Math.pow(k, i)).toFixed(2));
+
+                // Format with appropriate decimals for consistency
+                let formatted;
+                if (i === 0) { // bps - convert to Kbps for consistency
+                    formatted = (value / 1000).toFixed(1);
+                    return formatted + ' Kbps';
+                } else if (i === 1) { // Kbps
+                    formatted = value.toFixed(1);
+                } else { // Mbps and above
+                    formatted = value.toFixed(2);
+                }
+
+                return formatted + ' ' + sizes[i];
             }
             
             
@@ -1104,10 +1294,16 @@ function sanitizeOutput($data, $context = 'html') {
                         </td>
                         <td>
                             ${isOnline ? `
-                                <div class="traffic-info">
-                                    <span class="traffic-upload">Up ${trafficData.tx}</span>
-                                    <span class="text-muted"> / </span>
-                                    <span class="traffic-download">Down ${trafficData.rx}</span>
+                                <div class="traffic-info-compact">
+                                    <span class="traffic-item-compact traffic-upload">
+                                        <i class="bi bi-arrow-up-circle-fill"></i>
+                                        <span class="traffic-value">${trafficData.txRate}</span>
+                                    </span>
+                                    <span class="traffic-separator">-</span>
+                                    <span class="traffic-item-compact traffic-download">
+                                        <i class="bi bi-arrow-down-circle-fill"></i>
+                                        <span class="traffic-value">${trafficData.rxRate}</span>
+                                    </span>
                                 </div>
                             ` : '<small class="text-muted">-</small>'}
                         </td>
@@ -1207,20 +1403,56 @@ function sanitizeOutput($data, $context = 'html') {
                         aVal = this.isUserOnline(a.name) ? 'online' : 'offline';
                         bVal = this.isUserOnline(b.name) ? 'online' : 'offline';
                     } else if (this.sortField === 'traffic') {
-                        // Sort by total traffic (rx + tx)
-                        const aTraffic = this.getUserTraffic(a.name);
-                        const bTraffic = this.getUserTraffic(b.name);
-                        const aSession = this.activeSessions.find(s => s.name === a.name);
-                        const bSession = this.activeSessions.find(s => s.name === b.name);
+                        // Sort by traffic RATE (bps) - combined rx + tx rate
+                        const aTrafficData = this.previousTrafficData.get(a.name);
+                        const bTrafficData = this.previousTrafficData.get(b.name);
 
-                        const aBytes = aSession ? (parseInt(aSession['bytes-in'] || 0) + parseInt(aSession['bytes-out'] || 0)) : 0;
-                        const bBytes = bSession ? (parseInt(bSession['bytes-in'] || 0) + parseInt(bSession['bytes-out'] || 0)) : 0;
+                        // Get total rate (rx + tx) in bytes per second
+                        const aTotalRate = aTrafficData ? ((aTrafficData.rxRate || 0) + (aTrafficData.txRate || 0)) : 0;
+                        const bTotalRate = bTrafficData ? ((bTrafficData.rxRate || 0) + (bTrafficData.txRate || 0)) : 0;
 
-                        return this.sortDirection === 'asc' ? aBytes - bBytes : bBytes - aBytes;
+                        // Sort: ascending = lowest first, descending = highest first
+                        return this.sortDirection === 'asc' ? aTotalRate - bTotalRate : bTotalRate - aTotalRate;
                     } else if (this.sortField === 'disabled') {
                         // Sort by status (enabled/disabled)
                         aVal = a.disabled === 'true' ? 'disabled' : 'enabled';
                         bVal = b.disabled === 'true' ? 'disabled' : 'enabled';
+                    } else if (this.sortField === 'remote-address') {
+                        // Sort IP addresses numerically
+                        const aIP = a['remote-address'] || '';
+                        const bIP = b['remote-address'] || '';
+
+                        // Convert IP to numeric value for proper sorting
+                        const ipToNum = (ip) => {
+                            const parts = ip.split('.');
+                            if (parts.length !== 4) return 0;
+                            return parts.reduce((acc, octet, index) => {
+                                return acc + (parseInt(octet) || 0) * Math.pow(256, 3 - index);
+                            }, 0);
+                        };
+
+                        const aNum = ipToNum(aIP);
+                        const bNum = ipToNum(bIP);
+
+                        return this.sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
+                    } else if (this.sortField === 'last-caller-id') {
+                        // Sort Caller ID (also IP addresses) numerically
+                        const aCallerID = a['last-caller-id'] || '';
+                        const bCallerID = b['last-caller-id'] || '';
+
+                        // Convert IP to numeric value for proper sorting
+                        const ipToNum = (ip) => {
+                            const parts = ip.split('.');
+                            if (parts.length !== 4) return 0;
+                            return parts.reduce((acc, octet, index) => {
+                                return acc + (parseInt(octet) || 0) * Math.pow(256, 3 - index);
+                            }, 0);
+                        };
+
+                        const aNum = ipToNum(aCallerID);
+                        const bNum = ipToNum(bCallerID);
+
+                        return this.sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
                     } else {
                         // Default string sort
                         aVal = a[this.sortField] || '';
@@ -1334,7 +1566,6 @@ function sanitizeOutput($data, $context = 'html') {
                         throw new Error(result.message || 'Failed to create user');
                     }
                 } catch (error) {
-                    console.error('Add user error details:', error);
                     this.showAlert('Error creating user: ' + error.message, 'danger');
                 } finally {
                     this.hideLoading();
@@ -1415,8 +1646,6 @@ function sanitizeOutput($data, $context = 'html') {
                             }
                         }
                     } catch (detailsError) {
-                        console.error('Error fetching user details:', detailsError);
-                        
                         // Could not fetch additional details, using existing data
                         // Use mock data for demonstration based on remote-address
                         if (user['remote-address'] === '10.51.0.2') {
@@ -1585,7 +1814,6 @@ function sanitizeOutput($data, $context = 'html') {
                         throw new Error(result.message || 'Failed to toggle user status');
                     }
                 } catch (error) {
-                    console.error('Toggle error:', error);
                     this.showAlert('Error updating user status: ' + error.message, 'danger');
                 } finally {
                     this.hideLoading();
@@ -1623,7 +1851,6 @@ function sanitizeOutput($data, $context = 'html') {
                 const container = document.querySelector(`#nat-row-${escapedUserId} .nat-details-container`);
 
                 if (!container) {
-                    console.error('NAT container not found for userId:', userId, 'escaped:', escapedUserId);
                     return;
                 }
 
@@ -1664,19 +1891,23 @@ function sanitizeOutput($data, $context = 'html') {
                             // Get server IP from config for display
                             const serverIP = result.data.server_ip || '103.187.147.74';
 
-                            const rulesHTML = natRules.map(rule => {
+                            const rulesHTML = natRules.map((rule, index) => {
                                 const dstPort = rule['dst-port'] || '';
                                 const toPort = rule['to-ports'] || '';
                                 const protocol = rule['protocol'] || 'tcp';
 
                                 // Format sama dengan User Details: serverIP:dst-port > to-port
                                 const displayText = `${serverIP}:${dstPort} > ${toPort || 'N/A'}`;
+                                const copyText = `${serverIP}:${dstPort}`;
 
                                 return `
-                                    <div class="nat-rule-item">
+                                    <div class="nat-rule-item nat-rule-clickable"
+                                         onclick="pppManager.copyNATPort('${this.escapeHtml(copyText)}', event)"
+                                         title="Click to copy: ${this.escapeHtml(copyText)}">
                                         <i class="bi bi-arrow-right-circle-fill"></i>
                                         <span class="badge bg-secondary me-2">${protocol.toUpperCase()}</span>
-                                        ${this.escapeHtml(displayText)}
+                                        <span class="nat-port-text">${this.escapeHtml(displayText)}</span>
+                                        <i class="bi bi-clipboard-check ms-2 copy-icon"></i>
                                     </div>
                                 `;
                             }).join('');
@@ -1691,11 +1922,9 @@ function sanitizeOutput($data, $context = 'html') {
                         this.natCache.set(userId, natContent);
                         container.innerHTML = natContent;
                     } else {
-                        console.error('NAT API failed:', result);
                         throw new Error(result.message || 'Failed to load NAT rules');
                     }
                 } catch (error) {
-                    console.error('NAT load error:', error);
                     container.innerHTML = `<p class="text-danger mb-0">Error loading NAT rules: ${error.message}</p>`;
                 }
             }
@@ -1726,7 +1955,6 @@ function sanitizeOutput($data, $context = 'html') {
                         throw new Error(result.message || 'Failed to delete user');
                     }
                 } catch (error) {
-                    console.error('Delete error:', error);
                     this.showAlert('Error deleting user: ' + error.message, 'error');
                 } finally {
                     this.hideLoading();
@@ -1772,16 +2000,53 @@ ${clientConfig}`;
             copyToClipboard(elementId) {
                 const element = document.getElementById(elementId);
                 if (!element) return;
-                
+
                 element.select();
                 element.setSelectionRange(0, 99999); // For mobile devices
-                
+
                 try {
                     document.execCommand('copy');
                     this.showAlert('Configuration copied to clipboard!', 'success');
                 } catch (err) {
                     // Failed to copy text
                     this.showAlert('Failed to copy to clipboard. Please select and copy manually.', 'warning');
+                }
+            }
+
+            copyNATPort(portText, event) {
+                // Prevent row collapse when clicking
+                if (event) {
+                    event.stopPropagation();
+                }
+
+                // Use modern Clipboard API if available
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(portText).then(() => {
+                        this.showAlert(`NAT Port copied: ${portText}`, 'success');
+                    }).catch(err => {
+                        this.fallbackCopy(portText);
+                    });
+                } else {
+                    this.fallbackCopy(portText);
+                }
+            }
+
+            fallbackCopy(text) {
+                // Fallback method for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-9999px';
+                document.body.appendChild(textArea);
+                textArea.select();
+
+                try {
+                    document.execCommand('copy');
+                    this.showAlert(`NAT Port copied: ${text}`, 'success');
+                } catch (err) {
+                    this.showAlert('Failed to copy to clipboard.', 'danger');
+                } finally {
+                    document.body.removeChild(textArea);
                 }
             }
             
@@ -1837,7 +2102,6 @@ ${clientConfig}`;
                         this.showAlert('Failed to delete users: ' + result.message, 'error');
                     }
                 } catch (error) {
-                    console.error('Bulk delete error:', error);
                     this.showAlert('Error deleting users: ' + error.message, 'error');
                 } finally {
                     this.hideLoading();
@@ -1874,7 +2138,6 @@ ${clientConfig}`;
                         this.showAlert('Failed to toggle status: ' + result.message, 'error');
                     }
                 } catch (error) {
-                    console.error('Bulk toggle error:', error);
                     this.showAlert('Error toggling status: ' + error.message, 'error');
                 } finally {
                     this.hideLoading();
